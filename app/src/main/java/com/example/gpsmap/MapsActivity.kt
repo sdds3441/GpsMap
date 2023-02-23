@@ -2,9 +2,13 @@ package com.example.gpsmap
 
 import android.Manifest.permission.ACCESS_COARSE_LOCATION
 import android.Manifest.permission.ACCESS_FINE_LOCATION
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager.PERMISSION_GRANTED
+import android.location.Location
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Looper
+import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -16,6 +20,8 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.example.gpsmap.databinding.ActivityMapsBinding
+import com.google.android.gms.location.*
+import com.google.android.gms.maps.model.CameraPosition
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
@@ -68,12 +74,58 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
-        // Add a marker in Sydney and move the camera
-        val sydney = LatLng(-34.0, 151.0)
-        mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney))
-    }
+        fusedLocationClient=LocationServices.getFusedLocationProviderClient(this)
 
+        setUpdateLocationListener()
+
+        }
+
+    //위치정보 받아오기
+    lateinit var fusedLocationClient:FusedLocationProviderClient
+    lateinit var locationCallback:LocationCallback
+
+    @SuppressLint("MissingPermission")
+    fun setUpdateLocationListener() {
+        val locationRequest = LocationRequest.create()
+        locationRequest.run {
+            priority=LocationRequest.PRIORITY_HIGH_ACCURACY
+            interval = 1000
+        }
+
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                locationResult.let {
+                    for ((i, location) in it.locations.withIndex()) {
+                        Log.d("로케이션", "$i ${location.latitude},${location.longitude}}")
+                        setLastLocation(location)
+                    }
+                }
+            }
+
+        }
+
+        fusedLocationClient.requestLocationUpdates(
+            locationRequest,
+            locationCallback,
+            Looper.myLooper()
+        )
+    }
+    fun setLastLocation(location: Location){
+        val myLocation=LatLng(location.latitude,location.longitude)
+        val marker=MarkerOptions()
+            .position(myLocation)
+            .title("I am here!")
+        val cameraOption=CameraPosition.Builder()
+            .target(myLocation)
+            .zoom(15.0f)
+            .build()
+        val camera=CameraUpdateFactory.newCameraPosition(cameraOption)
+
+        mMap.clear()
+
+        mMap.addMarker(marker)
+        mMap.moveCamera(camera)
+    }
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
